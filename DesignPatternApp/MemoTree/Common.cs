@@ -7,7 +7,7 @@ namespace MemoTree
     /// <summary>
     /// 共通処理クラス
     /// </summary>
-    public static class Common
+    internal static class Common
     {
         // TODO 未使用
         /// <summary>
@@ -15,7 +15,7 @@ namespace MemoTree
         /// </summary>
         /// <returns>ファイル名の一覧</returns>
         /// <param name="strPath">指定パス</param>
-        public static List<string> GetAllFileName(string strPath)
+        internal static List<string> GetAllFileName(string strPath)
         {
             var astrDirectoryName = Directory.GetDirectories(strPath);
             var astrFileName = Directory.GetFiles(strPath, "*.txt");
@@ -31,7 +31,7 @@ namespace MemoTree
         /// 指定されたパスのファイルを開く。
         /// </summary>
         /// <param name="strPath">指定パス</param>
-        public static void FileOpen(string strPath)
+        internal static void FileOpen(string strPath)
         {
             System.Diagnostics.Process.Start(strPath);
         }
@@ -39,12 +39,24 @@ namespace MemoTree
         /// <summary>
         /// コンソールの初期表示
         /// </summary>
-        public static void InitConsole()
+        internal static void InitConsole()
         {
             Console.Clear();
-            Console.WriteLine(Define.DEFAULT_TXET);
+            Console.WriteLine(Define.TXT_DEFAULT);
         }
 
-        // TODO コンソールの再描画処理
+        /// <summary>
+        /// ファイル名の先頭に、0からの番号を付与して出力を行う
+        /// </summary>
+        /// <param name="lstStrFileName"></param>
+        internal static void OutputFileName(List<string> lstStrFileName)
+        {
+            var iIdx = 0;
+            foreach (var strfileName in lstStrFileName)
+            {
+                Console.WriteLine(iIdx + " : " + strfileName);
+                iIdx++;
+            }
+        }
     }
 }

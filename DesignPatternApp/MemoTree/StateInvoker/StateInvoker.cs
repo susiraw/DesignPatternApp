@@ -5,7 +5,7 @@ namespace MemoTree
     /// StateパターンのState（状態）
     /// CommandパターンのInvoker（起動者）
     /// </summary>
-    public abstract class StateInvoker
+    internal abstract class StateInvoker
     {
         // 起動対象となるCommand
         protected Command m_command;
@@ -14,7 +14,7 @@ namespace MemoTree
         /// 起動対象となるCommandを設定する
         /// </summary>
         /// <param name="command"></param>
-        public void SetCommand(Command command)
+        internal void SetCommand(Command command)
         {
             this.m_command = command;
         }
@@ -23,6 +23,6 @@ namespace MemoTree
         /// 各StateInvokerの処理を行う
         /// </summary>
         /// <param name="context"></param>
-        public abstract bool Execute(Context context);
+        internal abstract bool Execute(Context context);
     }
 }

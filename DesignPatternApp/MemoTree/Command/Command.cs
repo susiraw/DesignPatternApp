@@ -4,15 +4,16 @@
     /// CommandパターンのCommand（命令）
     /// 各インターフェースを定義する。
     /// </summary>
-    public abstract class Command
+    internal abstract class Command
     {
-        // TODO プロパティ化の検討
         // CommandパターンのReceiver（受信者）
         internal Component m_component;
 
-        // TODO プロパティ化の検討
         // Undo用のCommand
         internal Command m_undoCommand;
+
+        // コマンド保持フラグ（true:Undo,Redoが実行可能）
+        internal bool m_bStack = true;
 
         /// <summary>
         /// Componentをセットする
@@ -29,9 +30,58 @@
         internal abstract void SetUndoCommand();
 
         /// <summary>
+        /// 各Commandの実行に必要な処理を呼び出す
+        /// TemplateMethodパターン
+        /// </summary>
+        /// <param name="context">Context.</param>
+        /// <param name="component">Component.</param>
+        /// <param name="bStack"></param>
+        internal void CallExecute(Context context, Component component, bool bStack = true)
+        {
+            this.BeforeExecute(component, bStack);
+            this.Execute(context);
+            this.AfterExecute(context);
+        }
+
+        /// <summary>
+        /// 各Commandの実行前の処理を行う
+        /// </summary>
+        /// <param name="component"></param>
+        /// <param name="bStack"></param>
+        internal virtual void BeforeExecute(Component component, bool bStack)
+        {
+            this.m_bStack = bStack;
+            if (component != null)
+            {
+                this.SetComponent(component);
+            }
+        }
+
+        /// <summary>
         /// 各Commandの処理を行う
         /// </summary>
         /// <param name="context"></param>
         internal abstract void Execute(Context context);
+
+        /// <summary>
+        /// 各Commandの実行後の処理を行う
+        /// </summary>
+        /// <param name="context">Context.</param>
+        internal virtual void AfterExecute(Context context)
+        {
+            // コンソールを初期化
+            Common.InitConsole();
+            // カレントコンポーネント配下の全ファイル名を出力
+            var lstStrFileName = DirComponent.GetAllFileName((DirComponent)context.m_currentComponent);
+            Common.OutputFileName(lstStrFileName);
+            // Redoをクリア
+            context.m_redoStack.Clear();
+            // Undoをスタック
+            if (this.m_bStack)
+            {
+                this.SetUndoCommand();
+                context.m_undoStack.Push(this);
+            }
+        }
     }
 }

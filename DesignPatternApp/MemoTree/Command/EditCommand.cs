@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace MemoTree
 {
@@ -6,20 +7,12 @@ namespace MemoTree
     /// Editコマンド処理
     /// ディレクトリ、または、ファイルの名前を変更する。
     /// </summary>
-    public class EditCommand : Command
+    internal class EditCommand : Command
     {
-        /// <summary>
-        /// Editモード
-        /// </summary>
-        internal enum EditMode : byte
-        {
-            EditDirName = 0,
-            EditFileName
-        }
-
-        // TODO プロパティ化の検討
-        // Editモード
-        internal EditMode m_editMode = EditMode.EditDirName;
+        // Undo、Redoから実行した際のディレクトリ名、ファイル名
+        internal string m_strNoInputName;
+        // Undo設定用にディレクトリ名、ファイル名を保持
+        internal string m_strTmpBeforeName;
 
         /// <summary>
         /// EditCommandの処理を実行する
@@ -27,16 +20,33 @@ namespace MemoTree
         /// <param name="context"></param>
         internal override void Execute(Context context)
         {
-            // 編集対象となるパスを設定
-            var strPathName = Path.GetDirectoryName(base.m_component.m_strPath) + "/" + base.m_component.m_strName;
-            switch (this.m_editMode)
+            // Undo用に編集前の名前を保持
+            this.m_strTmpBeforeName = base.m_component.m_strName;
+            // パス、名前を設定
+            var strNewPath = "";
+            var strNewName = "";
+            if (context.m_strInputName != null)
             {
-                case EditMode.EditDirName:
-                    EditDirName(base.m_component.m_strPath, strPathName);
-                    break;
-                case EditMode.EditFileName:
-                    EditFileName(base.m_component.m_strPath, strPathName);
-                    break;
+                // 入力あり
+                strNewPath = Path.GetDirectoryName(base.m_component.m_strPath) + "/" + context.m_strInputName;
+                strNewName = context.m_strInputName;
+                this.m_strNoInputName = context.m_strInputName;
+            }
+            else
+            {
+                // Undo、Redoから呼び出し
+                strNewPath = Path.GetDirectoryName(base.m_component.m_strPath) + "/" + this.m_strNoInputName;
+                strNewName = this.m_strNoInputName;
+            }
+
+            // Undo用に編集前の名前を保持
+            if (base.m_component.GetType() == typeof(DirComponent))
+            {
+                this.EditDirName(strNewName, base.m_component.m_strPath, strNewPath);
+            }
+            else
+            {
+                this.EditFileName(strNewName, base.m_component.m_strPath, strNewPath);
             }
         }
 
@@ -45,15 +55,19 @@ namespace MemoTree
         /// </summary>
         /// <param name="strPathNameOld"></param>
         /// <param name="strPathNameNew"></param>
-        private static void EditDirName(string strPathNameOld, string strPathNameNew)
+        private void EditDirName(string strNewName, string strPathNameOld, string strPathNameNew)
         {
             if (!Directory.Exists(strPathNameNew))
             {
                 Directory.Move(strPathNameOld, strPathNameNew);
+                ModifyPath(this.m_component, strPathNameOld, strPathNameNew);
+                this.m_component.m_strName = strNewName;
             }
-            // TODO 既に存在する場合の処理を検討
-            // TODO 編集後のディレクトリ名に合わせてコンポーネントを再帰的に書き換える
-            // TODO ディレクトリ配下の再取得の方が実装コストが低い
+            else
+            {
+                Console.WriteLine(Define.TXT_ALREADY_EXIST);
+                base.m_bStack = false;
+            }
         }
 
         /// <summary>
@@ -61,13 +75,37 @@ namespace MemoTree
         /// </summary>
         /// <param name="strPathNameOld"></param>
         /// <param name="strPathNameNew"></param>
-        private static void EditFileName(string strPathNameOld, string strPathNameNew)
+        private void EditFileName(string strNewName, string strPathNameOld, string strPathNameNew)
         {
             if (!File.Exists(strPathNameNew))
             {
                 File.Move(strPathNameOld, strPathNameNew);
+                ModifyPath(this.m_component, strPathNameOld, strPathNameNew);
+                this.m_component.m_strName = strNewName;
             }
-            // TODO 既に存在する場合の処理を検討
+            else
+            {
+                Console.WriteLine(Define.TXT_ALREADY_EXIST);
+                base.m_bStack = false;
+            }
+        }
+
+        /// <summary>
+        /// 編集後の名称にてコンポーネントのパスを再帰的に修正する
+        /// </summary>
+        /// <param name="component">Component.</param>
+        /// <param name="strPathNameOld">String path name old.</param>
+        /// <param name="strPathNameNew">String path name new.</param>
+        private static void ModifyPath(Component component, string strPathNameOld, string strPathNameNew)
+        {
+            if (component.GetType() == typeof(DirComponent))
+            {
+                foreach (var subComponent in ((DirComponent)component).m_listComponent)
+                {
+                    ModifyPath(subComponent, strPathNameOld, strPathNameNew);
+                }
+            }
+            component.m_strPath = component.m_strPath.Replace(strPathNameOld, strPathNameNew);
         }
 
         /// <summary>
@@ -75,7 +113,10 @@ namespace MemoTree
         /// </summary>
         internal override void SetUndoCommand()
         {
-            // TODO Undo用のCommandとしてEditCommandを設定する
+            var editCommand = new EditCommand();
+            editCommand.SetComponent(base.m_component);
+            editCommand.m_strNoInputName = this.m_strTmpBeforeName;
+            base.m_undoCommand = editCommand;
         }
     }
 }

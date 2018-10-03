@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -7,18 +8,17 @@ namespace MemoTree
     /// <summary>
     /// ディレクトリコンポーネント
     /// </summary>
-    public class DirComponent : Component
+    internal class DirComponent : Component
     {
-        // TODO 親クラスで定義するか検討
         // サブコンポーネント
-        protected List<Component> m_listComponent;
+        internal List<Component> m_listComponent;
 
         /// <summary>
         /// コンストラクタ
         /// 各メンバーの設定を行う
         /// </summary>
         /// <param name="strPath"></param>
-        public DirComponent(string strPath)
+        internal DirComponent(string strPath)
         {
             this.m_strPath = strPath;
             this.m_strName = Path.GetFileName(strPath);
@@ -30,7 +30,7 @@ namespace MemoTree
         /// 対象となるDirComponent配下のコンポーネントを再帰的に取得、設定する。
         /// </summary>
         /// <param name="dirComponent"></param>
-        public static void SetComponent(DirComponent dirComponent)
+        internal static void SetComponent(DirComponent dirComponent)
         {
             foreach (var dir in Directory.GetDirectories(dirComponent.m_strPath))
             {
@@ -46,37 +46,37 @@ namespace MemoTree
         }
 
         /// <summary>
-        /// コンポーネントの取得
-        /// 対象となるDirComponent配下から対象パスのコンポーネントを再帰的に取得する。
-        /// </summary>
-        /// <param name="dirComponent"></param>
-        /// <param name="strPath"></param>
-		/// <returns>対象パスのコンポーネント</returns>
-        public static Component GetComponent(DirComponent dirComponent, string strPath)
-        {
-            // TODO パス以外に取得方法がないか検討
-            foreach (var component in dirComponent.m_listComponent)
-            {
-                if (component.m_strPath == strPath)
-                {
-                    return component;
-                }
-                if (component.GetType() == typeof(DirComponent))
-                {
-                    GetComponent((DirComponent)component, strPath);
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
         /// 対象となるDirComponent直下のコンポーネントの名前を全て取得する。
         /// </summary>
 		/// <param name="dirComponent"></param>
         /// <returns>ファイル名のリスト</returns>
-        public static List<string> GetAllFileName(DirComponent dirComponent)
+        internal static List<string> GetAllFileName(DirComponent dirComponent)
         {
             return dirComponent.m_listComponent.Select(x => x.m_strName).ToList();
+        }
+
+        /// <summary>
+        /// サブコンポーネントの追加を行う
+        /// DirComponentでのみ使用するため、仮想メソッドにて定義
+        /// </summary>
+        internal override void Add(Component component)
+        {
+            this.m_listComponent.Add(component);
+        }
+
+        /// <summary>
+        /// サブコンポーネントの削除を行う
+        /// 対象となるDirComponent配下のコンポーネントを再帰的に取得し、ファイル名を出力後、削除する。
+        /// </summary>
+        internal override void Remove(Context context, ref List<string> listDeleted)
+        {
+            listDeleted.Add(base.m_strName);
+            foreach(var component in this.m_listComponent)
+            {
+                component.Remove(context, ref listDeleted);
+            }
+            Directory.Delete(base.m_strPath);
+            context.m_currentComponent.m_listComponent.Remove(this);
         }
     }
 }

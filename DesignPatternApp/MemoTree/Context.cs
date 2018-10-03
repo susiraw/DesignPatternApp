@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Collections.Generic;
 
 namespace MemoTree
 {
@@ -11,18 +12,22 @@ namespace MemoTree
     /// </summary>
     public class Context
     {
-        // TODO プロパティ化の検討
         // StateInvoker（各StateInvokerにて動的に入れ替える）
         internal StateInvoker m_stateInvoker;
 
-        // TODO プロパティ化の検討
         // MemoTree配下のすべてのComponent
         internal DirComponent m_componentMain;
 
-        // TODO プロパティ化の検討
-        // TODO パスではなくカレントコンポーネントを検討
-        // カレントパス
-        internal string m_currentDirectory;
+        // カレントコンポーネント
+        internal DirComponent m_currentComponent;
+
+        // 入力されたディレクトリ名、ファイル名
+        internal string m_strInputName;
+
+        // Undo用のコマンドを保持
+        internal Stack<Command> m_undoStack = new Stack<Command>();
+        // Redo用のコマンドを保持
+        internal Stack<Command> m_redoStack = new Stack<Command>();
 
         /// <summary>
         /// コンストラクタ
@@ -36,27 +41,16 @@ namespace MemoTree
             {
                 Directory.CreateDirectory(strInitPath);
             }
-            this.m_currentDirectory = strInitPath;
             this.m_componentMain = new DirComponent(strInitPath);
             // 全ディレクトリ、ファイルを再帰的に取得
             DirComponent.SetComponent(this.m_componentMain);
+            this.m_currentComponent = this.m_componentMain;
 
             // 起動時はキー入力モードを設定
             this.m_stateInvoker = KeyInputStateInvoker.GetInstance();
             // 起動時はEnterコマンドを直接実行
-            var command = new EnterCommand();
-            command.SetComponent(this.m_componentMain);
-            command.Execute(this);
-        }
-
-        /// <summary>
-        /// StateInvokerを設定する
-        /// 各StateInvokerにて動的に入れ替える
-        /// </summary>
-        /// <param name="stateInvoker"></param>
-        public void SetState(StateInvoker stateInvoker)
-        {
-            this.m_stateInvoker = stateInvoker;
+            var enterCommand = new EnterCommand();
+            enterCommand.CallExecute(this, this.m_componentMain, false);
         }
 
         /// <summary>
@@ -66,6 +60,16 @@ namespace MemoTree
         public void ExecuteMemoTree()
         {
             while (this.m_stateInvoker.Execute(this)) { }
+        }
+
+        /// <summary>
+        /// StateInvokerを設定する
+        /// 各StateInvokerにて動的に入れ替える
+        /// </summary>
+        /// <param name="stateInvoker"></param>
+        internal void SetState(StateInvoker stateInvoker)
+        {
+            this.m_stateInvoker = stateInvoker;
         }
     }
 }

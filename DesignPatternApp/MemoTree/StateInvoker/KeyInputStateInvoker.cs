@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace MemoTree
 {
     /// <summary>
     /// キー入力モードのInvoker
     /// </summary>
-    public class KeyInputStateInvoker : StateInvoker
+    internal class KeyInputStateInvoker : StateInvoker
     {
         #region Singleton
         /// <summary>
@@ -25,7 +24,7 @@ namespace MemoTree
         /// Singletonパターンにて実装
         /// </summary>
         /// <returns></returns>
-        public static StateInvoker GetInstance()
+        internal static StateInvoker GetInstance()
         {
             if (stateInvoker == null)
             {
@@ -35,17 +34,12 @@ namespace MemoTree
         }
         #endregion
 
-        // Undo用のコマンドを保持
-        private Stack<Command> m_undoStack = new Stack<Command>();
-        // Redo用のコマンドを保持
-        private Stack<Command> m_redoStack = new Stack<Command>();
-
         /// <summary>
         /// キー入力モードの処理を行う
         /// </summary>
         /// <param name="context"></param>
         /// <returns>true:処理の続行、false:処理の終了</returns>
-        public override bool Execute(Context context)
+        internal override bool Execute(Context context)
         {
             while (true)
             {
@@ -62,52 +56,144 @@ namespace MemoTree
                             this.SetCharInputStateInvoker(context, true);
                             return true;
                         case ConsoleKey.Z:
-                            // TODO Redo処理
-                            // Redo処理
-                            Console.WriteLine("Redo Key");
-                            break;
-                        case ConsoleKey.Y:
-                            // TODO Undo処理
                             // Undo処理
-                            Console.WriteLine("Undo Key");
-                            break;
+                            if (context.m_undoStack.Count > 0)
+                            {
+                                var undoStackCommand = context.m_undoStack.Pop();
+                                undoStackCommand.m_undoCommand.CallExecute(context, null, false);
+                                context.m_redoStack.Push(undoStackCommand);
+                            }
+                            return true;
+                        case ConsoleKey.Y:
+                            // Redo処理
+                            if (context.m_redoStack.Count > 0)
+                            {
+                                var redoStackCommand = context.m_redoStack.Pop();
+                                redoStackCommand.CallExecute(context, null);
+                            }
+                            return true;
                     }
                 }
                 else if (IsNumericKey(keyInfo.Key, ref iNumericKeyNo))
                 {
                     // 数値（0〜9） + Key
-                    switch (keyInfo.Key)
+                    if (context.m_currentComponent.m_listComponent.Count <= iNumericKeyNo)
                     {
-                        case ConsoleKey.Enter:
-                            // TODO Enter処理
-                            // Enter処理
-                            Console.WriteLine("Enter Key");
-                            break;
-                        case ConsoleKey.D:
-                            // TODO delete処理
-                            // delete処理
-                            Console.WriteLine("Delete Key");
-                            break;
-                        case ConsoleKey.E:
-                            // Edit処理
-                            this.SetCharInputStateInvoker(context, false, iNumericKeyNo);
-                            return true;
+                        Console.WriteLine("No." + iNumericKeyNo + " is nothing.");
+                    }
+                    else
+                    {
+                        keyInfo = Console.ReadKey(true);
+                        switch (keyInfo.Key)
+                        {
+                            case ConsoleKey.Enter:
+                                // Enter処理
+                                this.ExecuteEnterCommand(context, iNumericKeyNo);
+                                return true;
+                            case ConsoleKey.D:
+                                // delete処理
+                                Console.WriteLine(" is nothing.");
+                                this.ExecuteDeleteCommand(context, iNumericKeyNo);
+                                return true;
+                            case ConsoleKey.E:
+                                // Edit処理
+                                this.SetCharInputStateInvoker(context, false, iNumericKeyNo);
+                                return true;
+                            default:
+                                Console.WriteLine(keyInfo.Key + " is nothing.");
+                                break;
+                        }   
                     }
                 }
                 else
                 {
                     switch (keyInfo.Key)
                     {
-
+                        case ConsoleKey.Z:
+                            keyInfo = Console.ReadKey(true);
+                            if (keyInfo.Key == ConsoleKey.Enter)
+                            {
+                                // Enter処理（戻る）
+                                if (this.ExecuteEnterCommand(context))
+                                {
+                                    return true;
+                                }
+                            }
+                            break;
                         case ConsoleKey.Escape:
                             return false;
                         default:
-                            // TODO 不要
-                            Console.WriteLine("その他" + keyInfo.Key);
+                            Console.WriteLine("対応Keyなし：" + keyInfo.Key);
                             break;
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Enterコマンドを実行する。
+        /// </summary>
+        /// <param name="context">Context.</param>
+        private bool ExecuteEnterCommand(Context context, int iNumericKeyNo = -1)
+        {
+            // Enterコマンドを生成し、実行
+            var enterCommand = new EnterCommand();
+            Component component = null;
+            if (iNumericKeyNo == -1)
+            {
+                // 親コンポーネントを取得
+                var parentComponent = this.GetParentComponent(context.m_componentMain, context.m_currentComponent);
+                if (parentComponent == null)
+                {
+                    return false;
+                }
+                component = parentComponent;
+            }
+            else
+            {
+                component = context.m_currentComponent.m_listComponent[iNumericKeyNo];
+            }
+            enterCommand.CallExecute(context, component);
+            return true;
+        }
+
+        /// <summary>
+        /// 親コンポーネントを取得
+        /// 全コンポーネントから対象コンポーネントの親コンポーネントを再帰的に取得する。
+        /// ※MemoTree直下の場合、nullが返却される。
+        /// </summary>
+        /// <param name="parentComponent"></param>
+        /// <param name="childComponent"></param>
+        /// <returns>親コンポーネント</returns>
+        private Component GetParentComponent(DirComponent parentComponent, DirComponent childComponent)
+        {
+            foreach (var component in parentComponent.m_listComponent)
+            {
+                if (component == childComponent)
+                {
+                    return parentComponent;
+                }
+                if (component.GetType() == typeof(DirComponent))
+                {
+                    var recursiveComponent = GetParentComponent((DirComponent)component, childComponent);
+                    if (recursiveComponent != null)
+                    {
+                        return recursiveComponent;  
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// deleteコマンドを実行する。
+        /// </summary>
+        /// <param name="context">Context.</param>
+        private void ExecuteDeleteCommand(Context context, int iNumericKeyNo)
+        {
+            // Deleteコマンドを生成し、実行
+            var deleteCommand = new DeleteCommand();
+            deleteCommand.CallExecute(context, context.m_currentComponent.m_listComponent[iNumericKeyNo]);
         }
 
         /// <summary>
@@ -122,47 +208,53 @@ namespace MemoTree
             var charInputStateInvoker = (CharInputStateInvoker)CharInputStateInvoker.GetInstance();
             if (bIsCreateCommand)
             {
+                // 上限チェック
+                if (context.m_currentComponent.m_listComponent.Count > Define.MAX_COMPONENT_NUM)
+                {
+                    Console.WriteLine("Can't Create any more.");
+                    return;
+                }
+                Console.WriteLine("D Create directory, F Create file");
+
+                var bContinue = true;
+                var comopnentType = Define.ComponentType.Dir;
+                while (bContinue)
+                {
+                    switch (Console.ReadKey(true).Key)
+                    {
+                        case ConsoleKey.D:
+                            Console.WriteLine("Please input directory name.");
+                            comopnentType = Define.ComponentType.Dir;
+                            bContinue = false;
+                            break;
+                        case ConsoleKey.F:
+                            Console.WriteLine("Please input file name.");
+                            comopnentType = Define.ComponentType.File;
+                            bContinue = false;
+                            break;
+                        default:
+                            Console.WriteLine("Please press D or F key.");
+                            break;
+                    }
+                }
+
                 // Createコマンドを生成し、KeyStateInvoker、CharStateInvokerに設定
-                Console.WriteLine("D create directory, F create file");
                 var createCommand = new CreateCommand();
-                DirComponent.GetComponent(context.m_componentMain, context.m_currentDirectory);
+                createCommand.m_componentType = comopnentType;
+                createCommand.SetComponent(context.m_currentComponent);
                 context.m_stateInvoker.SetCommand(createCommand);
                 charInputStateInvoker.SetCommand(createCommand);
             }
             else
             {
                 // Editコマンドを生成し、KeyStateInvoker、CharStateInvokerに設定
-                Console.WriteLine("D edit directory name, F edit file name");
+                Console.WriteLine("Please input name.");
                 var editCommand = new EditCommand();
-                // TODO Editコマンド実行時のコンポーネントの設定
+                editCommand.SetComponent(context.m_currentComponent.m_listComponent[iNumericKeyNo]);
                 context.m_stateInvoker.SetCommand(editCommand);
                 charInputStateInvoker.SetCommand(editCommand);
             }
 
-            var bContinue = true;
-            while (bContinue)
-            {
-                switch (Console.ReadKey(true).Key)
-                {
-                    case ConsoleKey.D:
-                        // TODO Createモードの設定　Command側にてComponentのタイプで判定するなら不要
-                        // CharStateInvokerの処理モードをDirectoryに設定
-                        //charInputStateInvoker.m_mode = 
-                        //bIsCreateCommand ? CharInputStateInvoker.Mode.CreateDir : CharInputStateInvoker.Mode.EditDirName;
-                        bContinue = false;
-                        break;
-                    case ConsoleKey.F:
-                        // TODO Editモードの設定　Command側にてComponentのタイプで判定するなら不要
-                        // CharStateInvokerの処理モードをFileに設定
-                        //charInputStateInvoker.m_mode = 
-                        //bIsCreateCommand ? CharInputStateInvoker.Mode.CreateFile : CharInputStateInvoker.Mode.EditFileName;
-                        bContinue = false;
-                        break;
-                    default:
-                        Console.WriteLine("Please press D or F key.");
-                        break;
-                }
-            }
 
             // 文字入力モードを設定
             context.SetState(charInputStateInvoker);

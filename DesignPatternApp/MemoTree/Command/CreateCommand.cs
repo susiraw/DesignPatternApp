@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace MemoTree
 {
@@ -6,20 +7,10 @@ namespace MemoTree
     /// Createコマンド処理
     /// ディレクトリ、または、ファイルを作成する。
     /// </summary>
-    public class CreateCommand : Command
+    internal class CreateCommand : Command
     {
-        /// <summary>
-        /// Createモード
-        /// </summary>
-        internal enum CreateMode : byte
-        {
-            CreateDir = 0,
-            CreateFile
-        }
-
-        // TODO プロパティ化の検討
         // Createモード
-        internal CreateMode m_createMode = CreateMode.CreateDir;
+        internal Define.ComponentType m_componentType = Define.ComponentType.Dir;
 
         /// <summary>
         /// CreateCommandの処理を実行する
@@ -28,14 +19,14 @@ namespace MemoTree
         internal override void Execute(Context context)
         {
             // 作成対象となるパスを設定
-            var strPathName = Path.GetDirectoryName(base.m_component.m_strPath) + "/" + base.m_component.m_strName;
-            switch (this.m_createMode)
+            var strPathName = base.m_component.m_strPath + "/" + context.m_strInputName;
+            switch (this.m_componentType)
             {
-                case CreateMode.CreateDir:
-                    CreateDir(strPathName);
+                case Define.ComponentType.Dir:
+                    this.CreateDir(strPathName);
                     break;
-                case CreateMode.CreateFile:
-                    CreateFile(strPathName);
+                case Define.ComponentType.File:
+                    this.CreateFile(strPathName);
                     break;
             }
         }
@@ -44,13 +35,21 @@ namespace MemoTree
         /// ディレクトリを作成する
         /// </summary>
         /// <param name="strPathName"></param>
-        private static void CreateDir(string strPathName)
+        private void CreateDir(string strPathName)
         {
             if (!Directory.Exists(strPathName))
             {
                 Directory.CreateDirectory(strPathName);
+                base.m_component.Add(new DirComponent(strPathName));
+                // ディレクトリ配下の全ファイル名を取得
+                var lstStrFileName = DirComponent.GetAllFileName((DirComponent)base.m_component);
+                Common.OutputFileName(lstStrFileName);
             }
-            // TODO 既に存在する場合の処理を検討
+            else
+            {
+                Console.WriteLine(Define.TXT_ALREADY_EXIST);
+                base.m_bStack = false;
+            }
         }
 
         /// <summary>
@@ -59,11 +58,20 @@ namespace MemoTree
         /// <param name="strPathName"></param>
         private void CreateFile(string strPathName)
         {
+            strPathName = strPathName + ".txt";
             if (!File.Exists(strPathName))
             {
                 File.CreateText(strPathName);
+                base.m_component.Add(new FileComponent(strPathName));
+                // ディレクトリ配下の全ファイル名を取得
+                var lstStrFileName = DirComponent.GetAllFileName((DirComponent)base.m_component);
+                Common.OutputFileName(lstStrFileName);
             }
-            // TODO 既に存在する場合の処理を検討
+            else
+            {
+                Console.WriteLine(Define.TXT_ALREADY_EXIST);
+                base.m_bStack = false;
+            }
         }
 
         /// <summary>
@@ -71,7 +79,10 @@ namespace MemoTree
         /// </summary>
         internal override void SetUndoCommand()
         {
-            // TODO Undo用のCommandとしてDeleteCommandを設定する
+            var deleteCommand = new DeleteCommand();
+            var currentComponent = (DirComponent)base.m_component;
+            deleteCommand.SetComponent(currentComponent.m_listComponent[currentComponent.m_listComponent.Count - 1]);
+            base.m_undoCommand = deleteCommand;
         }
     }
 }

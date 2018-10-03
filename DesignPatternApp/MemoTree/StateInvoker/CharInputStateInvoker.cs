@@ -7,7 +7,7 @@ namespace MemoTree
     /// 文字入力のみを行い、Commandの実行は行わない。
     /// ※Invokerとしての機能はない
     /// </summary>
-    public class CharInputStateInvoker : StateInvoker
+    internal class CharInputStateInvoker : StateInvoker
     {
         #region Singleton
         /// <summary>
@@ -26,7 +26,7 @@ namespace MemoTree
         /// Singletonパターンにて実装
         /// </summary>
         /// <returns></returns>
-        public static StateInvoker GetInstance()
+        internal static StateInvoker GetInstance()
         {
             if (stateInvoker == null)
             {
@@ -36,21 +36,24 @@ namespace MemoTree
         }
         #endregion
 
+        // Undo用のディレクトリ名、ファイル名
+        internal string m_strUndoName = null;
+
         /// <summary>
         /// 文字入力モードの処理を行う
         /// ※文字入力モードでは常にtrueを返却する
         /// </summary>
 		/// <param name="context"></param>
         /// <returns>true:処理の続行、false:処理の終了</returns>
-        public override bool Execute(Context context)
+        internal override bool Execute(Context context)
         {
             // 文字入力を受け付ける
             var str = Console.ReadLine();
-            // 入力結果をCommandのReceiverにセット
-            base.m_command.m_component.m_strName = str;
+            context.m_strInputName = str;
             // Commandを実行
-            base.m_command.Execute(context);
-
+            base.m_command.CallExecute(context, null);
+            // 実行後、クリア
+            context.m_strInputName = null;
             // キー入力モードを設定し、処理の継続を返却
             context.SetState(KeyInputStateInvoker.GetInstance());
 
