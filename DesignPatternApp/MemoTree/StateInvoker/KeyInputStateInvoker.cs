@@ -60,7 +60,7 @@ namespace MemoTree
                             if (context.m_undoStack.Count > 0)
                             {
                                 var undoStackCommand = context.m_undoStack.Pop();
-                                undoStackCommand.m_undoCommand.CallExecute(context, null, false);
+                                undoStackCommand.m_undoCommand.CallExecute(context, null, false, false);
                                 context.m_redoStack.Push(undoStackCommand);
                             }
                             return true;
@@ -69,7 +69,7 @@ namespace MemoTree
                             if (context.m_redoStack.Count > 0)
                             {
                                 var redoStackCommand = context.m_redoStack.Pop();
-                                redoStackCommand.CallExecute(context, null);
+                                redoStackCommand.CallExecute(context, null, true, false);
                             }
                             return true;
                     }
@@ -92,7 +92,6 @@ namespace MemoTree
                                 return true;
                             case ConsoleKey.D:
                                 // delete処理
-                                Console.WriteLine(" is nothing.");
                                 this.ExecuteDeleteCommand(context, iNumericKeyNo);
                                 return true;
                             case ConsoleKey.E:
@@ -193,7 +192,7 @@ namespace MemoTree
         {
             // Deleteコマンドを生成し、実行
             var deleteCommand = new DeleteCommand();
-            deleteCommand.CallExecute(context, context.m_currentComponent.m_listComponent[iNumericKeyNo]);
+            deleteCommand.CallExecute(context, context.m_currentComponent.m_listComponent[iNumericKeyNo], false);
         }
 
         /// <summary>
@@ -209,7 +208,7 @@ namespace MemoTree
             if (bIsCreateCommand)
             {
                 // 上限チェック
-                if (context.m_currentComponent.m_listComponent.Count > Define.MAX_COMPONENT_NUM)
+                if (context.m_currentComponent.m_listComponent.Count >= Define.MAX_COMPONENT_NUM)
                 {
                     Console.WriteLine("Can't Create any more.");
                     return;

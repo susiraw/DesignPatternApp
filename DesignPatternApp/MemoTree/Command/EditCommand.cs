@@ -10,9 +10,12 @@ namespace MemoTree
     internal class EditCommand : Command
     {
         // Undo、Redoから実行した際のディレクトリ名、ファイル名
-        internal string m_strNoInputName;
+        private string m_strNoInputName;
         // Undo設定用にディレクトリ名、ファイル名を保持
-        internal string m_strTmpBeforeName;
+        private string m_strTmpBeforeName;
+
+        // エラーメッセージ
+        private string m_strErrMessage = "";
 
         /// <summary>
         /// EditCommandの処理を実行する
@@ -27,6 +30,13 @@ namespace MemoTree
             var strNewName = "";
             if (context.m_strInputName != null)
             {
+                // 未入力の場合、処理を実行しない
+                if (context.m_strInputName == "")
+                {
+                    this.m_strErrMessage = Define.TXT_INPUT_EMPTY;
+                    base.m_bStack = false;
+                    return;
+                }
                 // 入力あり
                 strNewPath = Path.GetDirectoryName(base.m_component.m_strPath) + "/" + context.m_strInputName;
                 strNewName = context.m_strInputName;
@@ -65,7 +75,7 @@ namespace MemoTree
             }
             else
             {
-                Console.WriteLine(Define.TXT_ALREADY_EXIST);
+                this.m_strErrMessage = Define.TXT_ALREADY_EXIST;
                 base.m_bStack = false;
             }
         }
@@ -77,6 +87,12 @@ namespace MemoTree
         /// <param name="strPathNameNew"></param>
         private void EditFileName(string strNewName, string strPathNameOld, string strPathNameNew)
         {
+            if (!strNewName.EndsWith(".txt"))
+            {
+                strNewName = strNewName + ".txt";
+                strPathNameNew = strPathNameNew + ".txt";
+            }
+
             if (!File.Exists(strPathNameNew))
             {
                 File.Move(strPathNameOld, strPathNameNew);
@@ -85,7 +101,7 @@ namespace MemoTree
             }
             else
             {
-                Console.WriteLine(Define.TXT_ALREADY_EXIST);
+                this.m_strErrMessage = Define.TXT_ALREADY_EXIST;
                 base.m_bStack = false;
             }
         }
@@ -106,6 +122,20 @@ namespace MemoTree
                 }
             }
             component.m_strPath = component.m_strPath.Replace(strPathNameOld, strPathNameNew);
+        }
+
+        /// <summary>
+        /// 各Commandの実行後の処理を行う
+        /// </summary>
+        /// <param name="context">Context.</param>
+        internal override void AfterExecute(Context context, bool bClearRedoStack = true)
+        {
+            base.AfterExecute(context, bClearRedoStack);
+            if (this.m_strErrMessage != "")
+            {
+                Console.WriteLine(this.m_strErrMessage);
+                this.m_strErrMessage = "";
+            }
         }
 
         /// <summary>

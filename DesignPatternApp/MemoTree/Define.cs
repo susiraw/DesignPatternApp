@@ -40,5 +40,10 @@ namespace MemoTree
         /// Create、Edit時に既に同一のファイル名が存在
         /// </summary>
         internal static readonly string TXT_ALREADY_EXIST = "This name is already exist";
+
+        /// <summary>
+        /// Create、Edit時にファイル名が未入力
+        /// </summary>
+        internal static readonly string TXT_INPUT_EMPTY = "Name is Empty";
     }
 }

@@ -36,11 +36,12 @@
         /// <param name="context">Context.</param>
         /// <param name="component">Component.</param>
         /// <param name="bStack"></param>
-        internal void CallExecute(Context context, Component component, bool bStack = true)
+        /// <param name="bClearRedoStack"></param>
+        internal void CallExecute(Context context, Component component, bool bStack = true, bool bClearRedoStack = true)
         {
             this.BeforeExecute(component, bStack);
             this.Execute(context);
-            this.AfterExecute(context);
+            this.AfterExecute(context, bClearRedoStack);
         }
 
         /// <summary>
@@ -67,7 +68,7 @@
         /// 各Commandの実行後の処理を行う
         /// </summary>
         /// <param name="context">Context.</param>
-        internal virtual void AfterExecute(Context context)
+        internal virtual void AfterExecute(Context context, bool bClearRedoStack = true)
         {
             // コンソールを初期化
             Common.InitConsole();
@@ -75,7 +76,10 @@
             var lstStrFileName = DirComponent.GetAllFileName((DirComponent)context.m_currentComponent);
             Common.OutputFileName(lstStrFileName);
             // Redoをクリア
-            context.m_redoStack.Clear();
+            if (bClearRedoStack)
+            {
+                context.m_redoStack.Clear();
+            }
             // Undoをスタック
             if (this.m_bStack)
             {
